@@ -52,7 +52,17 @@ func (uc *WorkspaceUseCase) CreateWorkspace(ctx context.Context, name, descripti
 }
 
 func (uc *WorkspaceUseCase) GetWorkspace(ctx context.Context, workspaceID, requesterID string) (*domain.Workspace, error) {
+	if err := uc.requireMember(ctx, workspaceID, requesterID); err != nil {
+		return nil, err
+	}
 
+	ws, err := uc.repo.GetWorkspaceByID(ctx, workspaceID)
+
+	if err != nil {
+		return nil, fmt.Errorf("retrieving workspace: %w", err)
+	}
+
+	return ws, nil
 }
 
 func (uc *WorkspaceUseCase) ListUserWorkspaces(ctx context.Context, userID string) (*domain.Workspace, error) {
