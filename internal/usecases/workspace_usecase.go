@@ -94,7 +94,11 @@ func (uc *WorkspaceUseCase) AddMember(ctx context.Context, workspaceID, requeste
 }
 
 func (uc *WorkspaceUseCase) ListMembers(ctx context.Context, workspaceID, requesterID string) ([]*domain.WorkspaceMember, error) {
+	if err := uc.requireMember(ctx, workspaceID, requesterID); err != nil {
+		return nil, err
+	}
 
+	return uc.repo.ListMembers(ctx, workspaceID)
 }
 
 func (uc *WorkspaceUseCase) RemoveMember(ctx context.Context, workspaceID, requesterID, targetUserID string) error {
