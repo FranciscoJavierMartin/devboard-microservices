@@ -65,8 +65,14 @@ func (uc *WorkspaceUseCase) GetWorkspace(ctx context.Context, workspaceID, reque
 	return ws, nil
 }
 
-func (uc *WorkspaceUseCase) ListUserWorkspaces(ctx context.Context, userID string) (*domain.Workspace, error) {
+func (uc *WorkspaceUseCase) ListUserWorkspaces(ctx context.Context, userID string) ([]*domain.Workspace, error) {
+	workspaces, err := uc.repo.ListWorkspacesByUser(ctx, userID)
 
+	if err != nil {
+		return nil, fmt.Errorf("retrieving workspaces from user %s: %w", userID, err)
+	}
+
+	return workspaces, nil
 }
 
 func (uc *WorkspaceUseCase) AddMember(ctx context.Context, workspaceID, requesterID, newUserID string, role domain.WorkspaceRole) (*domain.WorkspaceMember, error) {
