@@ -76,7 +76,21 @@ func (uc *WorkspaceUseCase) ListUserWorkspaces(ctx context.Context, userID strin
 }
 
 func (uc *WorkspaceUseCase) AddMember(ctx context.Context, workspaceID, requesterID, newUserID string, role domain.WorkspaceRole) (*domain.WorkspaceMember, error) {
+	if err := uc.requireAdmin(ctx, workspaceID, requesterID); err != nil {
+		return nil, err
+	}
 
+	if !role.IsValid() {
+		return nil, fmt.Errorf("invalid role %q: %w", role, domain.ErrInvalidInput)
+	}
+
+	member := domain.NewWorkspaceMember(workspaceID, newUserID, role)
+
+	if err := uc.repo.AddMember(ctx, member); err != nil {
+		return nil, fmt.Errorf("adding member: %w", err)
+	}
+
+	return member, nil
 }
 
 func (uc *WorkspaceUseCase) ListMembers(ctx context.Context, workspaceID, requesterID string) ([]*domain.WorkspaceMember, error) {
@@ -89,6 +103,7 @@ func (uc *WorkspaceUseCase) RemoveMember(ctx context.Context, workspaceID, reque
 
 func (uc *WorkspaceUseCase) requireMember(ctx context.Context, workspaceID, userID string) error {
 	_, err := uc.repo.GetMember(ctx, workspaceID, userID)
+
 	if err != nil {
 		return fmt.Errorf("workspace access denied: %w", domain.ErrForbidden)
 	}
