@@ -102,7 +102,15 @@ func (uc *WorkspaceUseCase) ListMembers(ctx context.Context, workspaceID, reques
 }
 
 func (uc *WorkspaceUseCase) RemoveMember(ctx context.Context, workspaceID, requesterID, targetUserID string) error {
+	if err := uc.requireAdmin(ctx, workspaceID, requesterID); err != nil {
+		return err
+	}
 
+	if requesterID == targetUserID {
+		return fmt.Errorf("you cannot remove yourself from workspace %s: %w", workspaceID, domain.ErrForbidden)
+	}
+
+	return uc.repo.RemoveMember(ctx, workspaceID, targetUserID)
 }
 
 func (uc *WorkspaceUseCase) requireMember(ctx context.Context, workspaceID, userID string) error {
