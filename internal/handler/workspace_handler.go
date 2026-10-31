@@ -128,3 +128,46 @@ func (h *WorkspaceHandler) Create(w http.ResponseWriter, r *http.Request) {
 		)
 	}
 }
+
+// List List all workspaces from current user
+//
+// @Summary     List my workspaces
+// @Description List all workspaces which user is member
+// @Tags        workspaces
+// @Produce     json
+// @Success     200 {object} PaginatedResponse[workspaceResponse]
+// @Security    BearerAuth
+// @Router      /workspaces [get]
+func (h *WorkspaceHandler) List(w http.ResponseWriter, r *http.Request) {
+	userID := middlewares.GetUserID(r)
+	if userID == "" {
+		RespondError(w, r, h.logger, domain.ErrUnauthorized)
+		return
+	}
+
+	workspaces, err := h.usecase.ListUserWorkspaces(r.Context(), userID)
+
+	if err != nil {
+		RespondError(w, r, h.logger, err)
+		return
+	}
+
+	response := make([]workspaceResponse, len(workspaces))
+
+	for i, workspace := range workspaces {
+		response[i] = toWorkspaceResponse(workspace)
+	}
+
+	if err := RespondJSON(w, http.StatusOK, PaginatedResponse[workspaceResponse]{
+		Data:    response,
+		HasMore: false,
+	}); err != nil {
+		h.logger.ErrorContext(
+			r.Context(),
+			"error getting JSON response to get tasks",
+			"error", err,
+			"method", r.Method,
+			"path", r.URL.Path,
+		)
+	}
+}
