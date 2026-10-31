@@ -27,7 +27,23 @@ func NewCommentUseCase(commentRepo CommentRepository, taskQuery TaskQueryReposit
 }
 
 func (uc *CommentUseCase) CreateComment(ctx context.Context, taskID, authorID, content string) (*domain.Comment, error) {
+	_, err := uc.taskQuery.GetByID(ctx, taskID)
 
+	if err != nil {
+		return nil, fmt.Errorf("task not found: %w", err)
+	}
+
+	comment, err := domain.NewComment(taskID, authorID, content)
+
+	if err != nil {
+		return nil, fmt.Errorf("creating comment: %w", err)
+	}
+
+	if err := uc.commentRepo.Create(ctx, comment); err != nil {
+		return nil, fmt.Errorf("saving comment: %w", err)
+	}
+
+	return comment, nil
 }
 
 func (uc *CommentUseCase) ListTaskComments(ctx context.Context, taskID string) ([]*domain.Comment, error) {
