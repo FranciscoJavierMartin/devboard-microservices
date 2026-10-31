@@ -42,7 +42,19 @@ func (uc *ProjectUseCase) CreateProject(ctx context.Context, workspaceID, name, 
 }
 
 func (uc *ProjectUseCase) GetProject(ctx context.Context, projectID, requesterID string) (*domain.Project, error) {
+	project, err := uc.projectRepo.GetByID(ctx, projectID)
 
+	if err != nil {
+		return nil, fmt.Errorf("retrieving project: %w", err)
+	}
+
+	_, err = uc.workspaceRepo.GetMember(ctx, project.WorkspaceID, requesterID)
+
+	if err != nil {
+		return nil, fmt.Errorf("project access denied: %w", domain.ErrForbidden)
+	}
+
+	return project, nil
 }
 
 func (uc *ProjectUseCase) ListWorkspaceProjects(ctx context.Context, workspaceID, requesterID string) ([]*domain.Project, error) {
