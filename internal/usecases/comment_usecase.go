@@ -31,7 +31,13 @@ func (uc *CommentUseCase) CreateComment(ctx context.Context, taskID, authorID, c
 }
 
 func (uc *CommentUseCase) ListTaskComments(ctx context.Context, taskID string) ([]*domain.Comment, error) {
+	comments, err := uc.commentRepo.ListByTask(ctx, taskID)
 
+	if err != nil {
+		return nil, fmt.Errorf("retrieving comments: %w", err)
+	}
+
+	return comments, nil
 }
 
 func (uc *CommentUseCase) DeleteComment(ctx context.Context, commentID, requesterID string) error {
