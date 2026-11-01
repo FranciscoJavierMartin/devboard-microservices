@@ -95,10 +95,16 @@ func main() {
 
 	userRepo := pgrepo.NewUserRepository(pool)
 	taskRepo := pgrepo.NewTaskRepository(pool)
+	workspaceRepo := pgrepo.NewWorkspaceRepository(pool)
+	projectRepo := pgrepo.NewProjectRepository(pool)
+	commentRepo := pgrepo.NewCommentRepository(pool)
 
 	userUC := usecases.NewUserUseCase(userRepo)
 	taskUC := usecases.NewTaskUseCase(taskRepo, taskRepo)
 	authUC := usecases.NewAuthUseCase(userRepo, jwtManager, tokenStore, refreshTokenDuration)
+	workspaceUC := usecases.NewWorkspaceUseCase(workspaceRepo)
+	projectUC := usecases.NewProjectUseCase(projectRepo, workspaceRepo)
+	commentUC := usecases.NewCommentUseCase(commentRepo, taskRepo)
 
 	validate := validator.New()
 	// notifier := notification.NewLogNotifier(log)
@@ -115,6 +121,9 @@ func main() {
 	userHandler := handler.NewUserHandler(userUC, validate, logger)
 	taskHandler := handler.NewTaskHandler(taskUC, validate, logger)
 	authHandler := handler.NewAuthHandler(authUC, validate, logger)
+	workspaceHandler := handler.NewWorkspaceHandler(workspaceUC, validate, logger)
+	projectHandler := handler.NewProjectHandler(projectUC, validate, logger)
+	commentHandler := handler.NewCommentHandler(commentUC, validate, logger)
 
 	// Middleware auth
 	authMW := middlewares.RequireAuth(jwtManager, logger)
@@ -142,6 +151,21 @@ func main() {
 	srv.RegisterRoutes("GET /api/v1/projects/{id}/tasks", middlewares.Chain(http.HandlerFunc(taskHandler.ListByProject), authMW))
 	srv.RegisterRoutes("PUT /api/v1/tasks/{id}/assign", middlewares.Chain(http.HandlerFunc(taskHandler.Assign), authMW))
 	srv.RegisterRoutes("PUT /api/v1/tasks/{id}/status", middlewares.Chain(http.HandlerFunc(taskHandler.UpdateStatus), authMW))
+	// Workspace routes
+	srv.RegisterRoutes("POST /api/v1/workspaces", middlewares.Chain(http.HandlerFunc(workspaceHandler.Create), authMW))
+	srv.RegisterRoutes("GET /api/v1/workspaces", middlewares.Chain(http.HandlerFunc(workspaceHandler.List), authMW))
+	srv.RegisterRoutes("GET /api/v1/workspaces/{id}", middlewares.Chain(http.HandlerFunc(workspaceHandler.Get), authMW))
+	srv.RegisterRoutes("POST /api/v1/workspaces/{id}/members", middlewares.Chain(http.HandlerFunc(workspaceHandler.AddMember), authMW))
+	srv.RegisterRoutes("GET /api/v1/workspaces/{id}/members", middlewares.Chain(http.HandlerFunc(workspaceHandler.ListMembers), authMW))
+	srv.RegisterRoutes("DELETE /api/v1/workspaces/{id}/members/{userID}", middlewares.Chain(http.HandlerFunc(workspaceHandler.RemoveMember), authMW))
+	// Projects
+	srv.RegisterRoutes("POST /api/v1/projects", middlewares.Chain(http.HandlerFunc(projectHandler.Create), authMW))
+	srv.RegisterRoutes("GET /api/v1/projects/{id}", middlewares.Chain(http.HandlerFunc(projectHandler.Get), authMW))
+	srv.RegisterRoutes("GET /api/v1/workspaces/{id}/projects", middlewares.Chain(http.HandlerFunc(projectHandler.ListByWorkspace), authMW))
+	// Comments
+	srv.RegisterRoutes("POST /api/v1/tasks/{id}/comments", middlewares.Chain(http.HandlerFunc(commentHandler.Create), authMW))
+	srv.RegisterRoutes("GET /api/v1/tasks/{id}/comments", middlewares.Chain(http.HandlerFunc(commentHandler.ListByTask), authMW))
+	srv.RegisterRoutes("DELETE /api/v1/comments/{id}", middlewares.Chain(http.HandlerFunc(commentHandler.Delete), authMW))
 
 	srv.UseChain(
 		middlewares.Recovery(logger),
