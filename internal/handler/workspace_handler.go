@@ -210,3 +210,63 @@ func (h *WorkspaceHandler) Get(w http.ResponseWriter, r *http.Request) {
 		)
 	}
 }
+
+// AddMember Add member to workspace
+//
+// @Summary     Add member
+// @Description Add member to workspace. Only admin can perform this.
+// @Tags        workspaces
+// @Accept      json
+// @Produce     json
+// @Param       id      path     string           true "workspace ID"
+// @Param       request body     addMemberRequest true "Data of the member"
+// @Success     201     {object} memberResponse
+// @Failure     403     {object} ProblemDetails
+// @Security    BearerAuth
+// @Router      /workspaces/{id}/members [post]
+func (h *WorkspaceHandler) AddMember(w http.ResponseWriter, r *http.Request) {
+	workspaceId := r.PathValue("id")
+
+	var req addMemberRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		RespondError(w, r, h.logger, domain.ErrInvalidInput)
+	}
+
+	if errs := h.validator.Validate(req); errs != nil {
+		if err := RespondValidationError(w, errs); err != nil {
+			h.logger.ErrorContext(
+				r.Context(),
+				"error writing validation response",
+				"error", err,
+				"method", r.Method,
+				"path", r.URL.Path,
+			)
+		}
+		return
+	}
+
+	requesterID := middlewares.GetUserID(r)
+	if requesterID == "" {
+		RespondError(w, r, h.logger, domain.ErrUnauthorized)
+		return
+	}
+
+	member, err := h.usecase.AddMember(r.Context(), workspaceId, requesterID, req.UserID, domain.WorkspaceRole(req.Role))
+
+	if err != nil {
+		RespondError(w, r, h.logger, err)
+		return
+	}
+
+	if err := RespondJSON(w, http.StatusOK, toMemberResponse(member)); err != nil {
+		h.logger.ErrorContext(
+			r.Context(),
+			"error writing JSON response",
+			"error", err,
+			"method", r.Method,
+			"path", r.URL.Path,
+		)
+	}
+
+}
