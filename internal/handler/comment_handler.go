@@ -134,6 +134,33 @@ func (h *CommentHandler) ListByTask(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// Delete remove comment
+//
+// @Summary     Remove comment
+// @Description Remove comment. Only author can perform this.
+// @Tags        comments
+// @Param       id path string true "comment ID"
+// @Success     204 "No content"
+// @Failure     403 {object} ProblemDetails
+// @Security    BearerAuth
+// @Router      /comments/{id} [delete]
+func (h *CommentHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	commentID := r.PathValue("id")
+
+	authorID := middlewares.GetUserID(r)
+	if authorID == "" {
+		RespondError(w, r, h.logger, domain.ErrUnauthorized)
+		return
+	}
+
+	if err := h.usecase.DeleteComment(r.Context(), commentID, authorID); err != nil {
+		RespondError(w, r, h.logger, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func toCommentResponse(c *domain.Comment) commentResponse {
 	return commentResponse{
 		ID:        c.ID,
