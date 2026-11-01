@@ -10,11 +10,55 @@ definitions:
     - TaskStatusTodo
     - TaskStatusInProgress
     - TaskStatusDone
+  handler.PaginatedResponse-handler_commentResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/handler.commentResponse'
+        type: array
+      hasMore:
+        type: boolean
+      nextCursor:
+        type: string
+    type: object
+  handler.PaginatedResponse-handler_memberResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/handler.memberResponse'
+        type: array
+      hasMore:
+        type: boolean
+      nextCursor:
+        type: string
+    type: object
+  handler.PaginatedResponse-handler_projectResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/handler.projectResponse'
+        type: array
+      hasMore:
+        type: boolean
+      nextCursor:
+        type: string
+    type: object
   handler.PaginatedResponse-handler_taskResponse:
     properties:
       data:
         items:
           $ref: '#/definitions/handler.taskResponse'
+        type: array
+      hasMore:
+        type: boolean
+      nextCursor:
+        type: string
+    type: object
+  handler.PaginatedResponse-handler_workspaceResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/handler.workspaceResponse'
         type: array
       hasMore:
         type: boolean
@@ -38,12 +82,65 @@ definitions:
       type:
         type: string
     type: object
+  handler.addMemberRequest:
+    properties:
+      role:
+        enum:
+        - admin
+        - member
+        - viewer
+        type: string
+      user_id:
+        type: string
+    required:
+    - role
+    - user_id
+    type: object
   handler.assignTaskRequest:
     properties:
       assignee_id:
         type: string
     required:
     - assignee_id
+    type: object
+  handler.commentResponse:
+    properties:
+      author_id:
+        type: string
+      content:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      task_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  handler.createCommentRequest:
+    properties:
+      content:
+        maxLength: 5000
+        minLength: 1
+        type: string
+    required:
+    - content
+    type: object
+  handler.createProjectRequest:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      name:
+        maxLength: 100
+        minLength: 2
+        type: string
+      workspace_id:
+        type: string
+    required:
+    - name
+    - workspace_id
     type: object
   handler.createTaskRequest:
     properties:
@@ -76,6 +173,18 @@ definitions:
     - name
     - password
     type: object
+  handler.createWorkspaceRequest:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      name:
+        maxLength: 100
+        minLength: 2
+        type: string
+    required:
+    - name
+    type: object
   handler.healthResponse:
     properties:
       status:
@@ -94,6 +203,34 @@ definitions:
     required:
     - email
     - password
+    type: object
+  handler.memberResponse:
+    properties:
+      id:
+        type: string
+      joined_at:
+        type: string
+      role:
+        type: string
+      user_id:
+        type: string
+      workspace_id:
+        type: string
+    type: object
+  handler.projectResponse:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      workspace_id:
+        type: string
     type: object
   handler.refreshRequest:
     properties:
@@ -165,6 +302,21 @@ definitions:
       id:
         type: string
       name:
+        type: string
+    type: object
+  handler.workspaceResponse:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      slug:
         type: string
     type: object
   validator.ValidationError:
@@ -283,6 +435,27 @@ paths:
       summary: Register user
       tags:
       - auth
+  /comments/{id}:
+    delete:
+      description: Remove comment. Only author can perform this.
+      parameters:
+      - description: comment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No content
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ProblemDetails'
+      security:
+      - BearerAuth: []
+      summary: Remove comment
+      tags:
+      - comments
   /health:
     get:
       description: Verify that server is running and accepting requests
@@ -296,6 +469,51 @@ paths:
       summary: Health check
       tags:
       - system
+  /projects:
+    post:
+      consumes:
+      - application/json
+      description: Create new project inside workspace
+      parameters:
+      - description: Project data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.createProjectRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handler.projectResponse'
+      security:
+      - BearerAuth: []
+      summary: Create project
+      tags:
+      - projects
+  /projects/{id}:
+    get:
+      description: Retrieve project by ID
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.projectResponse'
+      security:
+      - BearerAuth: []
+      summary: Get project
+      tags:
+      - projects
   /projects/{id}/tasks:
     get:
       description: Returns all tasks that belongs to a project
@@ -407,6 +625,55 @@ paths:
       summary: Assign task
       tags:
       - tasks
+  /tasks/{id}/comments:
+    get:
+      description: List all comments from a task
+      parameters:
+      - description: task ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.PaginatedResponse-handler_commentResponse'
+      security:
+      - BearerAuth: []
+      summary: List comments
+      tags:
+      - comments
+    post:
+      consumes:
+      - application/json
+      description: Add comment to task
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Content
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.createCommentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handler.commentResponse'
+      security:
+      - BearerAuth: []
+      summary: Create comment
+      tags:
+      - comments
   /tasks/{id}/status:
     put:
       consumes:
@@ -489,6 +756,181 @@ paths:
       summary: Get user
       tags:
       - users
+  /workspaces:
+    get:
+      description: List all workspaces which user is member
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.PaginatedResponse-handler_workspaceResponse'
+      security:
+      - BearerAuth: []
+      summary: List my workspaces
+      tags:
+      - workspaces
+    post:
+      consumes:
+      - application/json
+      description: Create new workspace. Author is assigned as admin.
+      parameters:
+      - description: Workspace data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.createWorkspaceRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handler.workspaceResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ProblemDetails'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ProblemDetails'
+      security:
+      - BearerAuth: []
+      summary: Create workspace
+      tags:
+      - workspaces
+  /workspaces/{id}:
+    get:
+      description: Get a workspace. Only accesible by workspace's members
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.workspaceResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ProblemDetails'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ProblemDetails'
+      security:
+      - BearerAuth: []
+      summary: Get workspace
+      tags:
+      - workspaces
+  /workspaces/{id}/members:
+    get:
+      description: List all members from workspace
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.PaginatedResponse-handler_memberResponse'
+      security:
+      - BearerAuth: []
+      summary: List member
+      tags:
+      - workspaces
+    post:
+      consumes:
+      - application/json
+      description: Add member to workspace. Only admin can perform this.
+      parameters:
+      - description: workspace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Data of the member
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.addMemberRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handler.memberResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ProblemDetails'
+      security:
+      - BearerAuth: []
+      summary: Add member
+      tags:
+      - workspaces
+  /workspaces/{id}/members/{userID}:
+    delete:
+      description: Remove user from workspace. Only admin can perform this.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: User ID to be removed
+        in: path
+        name: userID
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No content
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ProblemDetails'
+      security:
+      - BearerAuth: []
+      summary: Remove memeber
+      tags:
+      - workspaces
+  /workspaces/{id}/projects:
+    get:
+      description: List all projects from workspace
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.PaginatedResponse-handler_projectResponse'
+      security:
+      - BearerAuth: []
+      summary: List projects from workspace
+      tags:
+      - projects
 securityDefinitions:
   BearerAuth:
     description: 'Write Bearer token with format: Bearer {token}'
