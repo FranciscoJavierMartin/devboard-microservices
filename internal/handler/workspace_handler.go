@@ -171,3 +171,42 @@ func (h *WorkspaceHandler) List(w http.ResponseWriter, r *http.Request) {
 		)
 	}
 }
+
+// Get Get workspace by ID
+//
+// @Summary     Get workspace
+// @Description Get a workspace. Only accesible by workspace's members
+// @Tags        workspaces
+// @Produce     json
+// @Param       id  path     string true "Workspace ID"
+// @Success     200 {object} workspaceResponse
+// @Failure     403 {object} ProblemDetails
+// @Failure     404 {object} ProblemDetails
+// @Security    BearerAuth
+// @Router      /workspaces/{id} [get]
+func (h *WorkspaceHandler) Get(w http.ResponseWriter, r *http.Request) {
+	workspaceId := r.PathValue("id")
+
+	userID := middlewares.GetUserID(r)
+	if userID == "" {
+		RespondError(w, r, h.logger, domain.ErrUnauthorized)
+		return
+	}
+
+	workspace, err := h.usecase.GetWorkspace(r.Context(), workspaceId, userID)
+
+	if err != nil {
+		RespondError(w, r, h.logger, err)
+		return
+	}
+
+	if err := RespondJSON(w, http.StatusOK, toWorkspaceResponse(workspace)); err != nil {
+		h.logger.ErrorContext(
+			r.Context(),
+			"error writing JSON response",
+			"error", err,
+			"method", r.Method,
+			"path", r.URL.Path,
+		)
+	}
+}
