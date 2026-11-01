@@ -93,6 +93,43 @@ func (h *ProjectHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Get Get project by ID
+//
+// @Summary     Get project
+// @Description Retrieve project by ID
+// @Tags        projects
+// @Produce     json
+// @Param       id  path     string true "Project ID"
+// @Success     200 {object} projectResponse
+// @Security    BearerAuth
+// @Router      /projects/{id} [get]
+func (h *ProjectHandler) Get(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	userID := middlewares.GetUserID(r)
+	if userID == "" {
+		RespondError(w, r, h.logger, domain.ErrUnauthorized)
+		return
+	}
+
+	project, err := h.usecase.GetProject(r.Context(), id, userID)
+
+	if err != nil {
+		RespondError(w, r, h.logger, err)
+		return
+	}
+
+	if err := RespondJSON(w, http.StatusOK, toProjectResponse(project)); err != nil {
+		h.logger.ErrorContext(
+			r.Context(),
+			"error writing JSON response",
+			"error", err,
+			"method", r.Method,
+			"path", r.URL.Path,
+		)
+	}
+}
+
 func toProjectResponse(p *domain.Project) projectResponse {
 	return projectResponse{
 		ID:          p.ID,
