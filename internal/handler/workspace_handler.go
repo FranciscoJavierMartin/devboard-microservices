@@ -316,3 +316,32 @@ func (h *WorkspaceHandler) ListMembers(w http.ResponseWriter, r *http.Request) {
 		)
 	}
 }
+
+// RemoveMember Remove member from workspace
+//
+// @Summary     Remove memeber
+// @Description Remove user from workspace. Only admin can perform this.
+// @Tags        workspaces
+// @Param       id     path string true "Workspace ID"
+// @Param       userID path string true "User ID to be removed"
+// @Success     204    "No content"
+// @Failure     403    {object} ProblemDetails
+// @Security    BearerAuth
+// @Router      /workspaces/{id}/members/{userID} [delete]
+func (h *WorkspaceHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
+	workspaceID := r.PathValue("id")
+	targetUserID := r.PathValue("userID")
+
+	requesterID := middlewares.GetUserID(r)
+	if requesterID == "" {
+		RespondError(w, r, h.logger, domain.ErrUnauthorized)
+		return
+	}
+
+	if err := h.usecase.RemoveMember(r.Context(), workspaceID, requesterID, targetUserID); err != nil {
+		RespondError(w, r, h.logger, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
