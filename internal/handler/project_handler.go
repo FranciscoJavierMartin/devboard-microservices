@@ -130,6 +130,52 @@ func (h *ProjectHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ListByWorkspace List projects from workspace
+//
+// @Summary     List projects from workspace
+// @Description List all projects from workspace
+// @Tags        projects
+// @Produce     json
+// @Param       id  path     string true "Workspace ID"
+// @Success     200 {object} PaginatedResponse[projectResponse]
+// @Security    BearerAuth
+// @Router      /workspaces/{id}/projects [get]
+func (h *ProjectHandler) ListByWorkspace(w http.ResponseWriter, r *http.Request) {
+	workspaceID := r.PathValue("id")
+
+	userID := middlewares.GetUserID(r)
+	if userID == "" {
+		RespondError(w, r, h.logger, domain.ErrUnauthorized)
+		return
+	}
+
+	projects, err := h.usecase.ListWorkspaceProjects(r.Context(), workspaceID, userID)
+
+	if err != nil {
+		RespondError(w, r, h.logger, err)
+		return
+	}
+
+	response := make([]projectResponse, len(projects))
+
+	for i, project := range projects {
+		response[i] = toProjectResponse(project)
+	}
+
+	if err := RespondJSON(w, http.StatusOK, PaginatedResponse[projectResponse]{
+		Data:    response,
+		HasMore: false,
+	}); err != nil {
+		h.logger.ErrorContext(
+			r.Context(),
+			"error getting JSON response to get projects",
+			"error", err,
+			"method", r.Method,
+			"path", r.URL.Path,
+		)
+	}
+}
+
 func toProjectResponse(p *domain.Project) projectResponse {
 	return projectResponse{
 		ID:          p.ID,
