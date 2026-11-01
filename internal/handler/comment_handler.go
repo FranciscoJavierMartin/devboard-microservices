@@ -93,6 +93,47 @@ func (h *CommentHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// ListByTask List all comment from a task
+//
+// @Summary     List comments
+// @Description List all comments from a task
+// @Tags        comments
+// @Produce     json
+// @Param       id  path     string true "task ID"
+// @Success     200 {object} PaginatedResponse[commentResponse]
+// @Security    BearerAuth
+// @Router      /tasks/{id}/comments [get]
+func (h *CommentHandler) ListByTask(w http.ResponseWriter, r *http.Request) {
+	taskID := r.PathValue("id")
+
+	comments, err := h.usecase.ListTaskComments(r.Context(), taskID)
+
+	if err != nil {
+		RespondError(w, r, h.logger, err)
+		return
+	}
+
+	response := make([]commentResponse, len(comments))
+
+	for i, comment := range comments {
+		response[i] = toCommentResponse(comment)
+	}
+
+	if err := RespondJSON(w, http.StatusOK, PaginatedResponse[commentResponse]{
+		Data:    response,
+		HasMore: false,
+	}); err != nil {
+		h.logger.ErrorContext(
+			r.Context(),
+			"error getting JSON response to get comments",
+			"error", err,
+			"method", r.Method,
+			"path", r.URL.Path,
+		)
+	}
+
+}
+
 func toCommentResponse(c *domain.Comment) commentResponse {
 	return commentResponse{
 		ID:        c.ID,
